@@ -22,20 +22,28 @@ categories = {
 ################################################################
 
 app = Flask(__name__)
-CORS(app)
-
 
 params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+#For running on local host
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
+
+
 db = SQLAlchemy(app)
+CORS(app)
 
 ################################################################
 
 from models.model import pass_param
 
 pass_param(db)
+
 
 from models.event import Event
 from models.user import Participant
@@ -193,23 +201,27 @@ def getEventFromCategory(eventCategory):
 #####################USER INFO##################################
 
 def sendOTP(name, mobile, otp):
-  data = dict()
-
+  data = {}
+  print(mobile)
   data['user'] = 'onlineteam.pecfest'
   data['password'] = 'onlinesms'
   data['sid'] = 'PECCHD'
   data['msisdn'] = '91' + mobile
-  name = name.split(' ')[0]
-  data['msg'] = "Hi " + name + "! Welcome to PECFEST, 2017. Your OTP is " + otp + ". Enter this OTP into the website/app to get your PECFEST ID. Happy participating!"
+
+  data['msg'] = "Hi " + name + "! Welcome to PECFEST, 2018. Your OTP is " + otp + ". Enter this OTP into the website/app to get your PECFEST ID. Happy participating!"
   data['gwid'] = 2
-  data['fl'] = 0
+  data['fl'] = 1
   headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
 
   res = post('http://www.smslane.com//vendorsms/pushsms.aspx', data=data, headers=headers)
+  print("res ==> ")
+  print(res)
   if res.status_code is not 200:
     return False
   else:
     text = res.text
+    print("text ==> ")
+    print(text)
     if 'Message Id' in text:
       messageId = text.split(' : ')
       sms = SentSMS(smsId=messageId, mobile=mobile, smsType=1, status=1)
@@ -230,18 +242,22 @@ def sendOTP(name, mobile, otp):
 
 
 # Create User
-@app.route('/user/create', methods=['POST'])
+@app.route('/user/create', methods=['POST', 'GET'])
 def createUser():
-    data = request.get_json()
 
-    firstName = data['firstName']
-    lastName = data['lastName']
+
+    data = request.get_json()
+    print(data)
+    firstName = data['fName']
+    lastName = data['lName']
     pecfestId = genPecfestId(firstName[:4].strip().upper())
     college = data['college']
     email = data['email']
     mobile = data['mobile']
     gender = data['gender']
-    accomodation = data['accomodation'] if "accomodation" in data else ""
+    password = data['password']
+
+    accomodation = data['accomodation'] if "accomodation" in data else "no"
     verified = 0
     smsCounter = 0
 
@@ -260,6 +276,7 @@ def createUser():
                        verified=verified,
                        smsCounter=smsCounter)
 
+    user.set_password(password)
     newPecfestId = PecfestIds(pecfestId=pecfestId)
 
     curr_session = db.session
@@ -344,6 +361,70 @@ def verifyUser():
   else:
     return jsonify({'ACK': 'FAILED', 'message': 'Wrong OTP'})
 
+@app.route('/user/<string:email>/password/<string:password>/', methods=['POST', 'GET'])
+def signIn(email,password):
+
+    data = request.get_json()
+    auth = {}
+
+    print(password)
+
+    user = Participant.query.filter_by(emailId=email).first()
+    print(user)
+
+    if user:
+        try:
+            print("Here")
+            if (user.check_password(password)):
+                auth["ACK"] = "SUCCESS"
+                print("Verified")
+            else:
+                auth["ACK"] = "FAILED"
+                auth["message"] = "WRONG USERNAME/PASSWORD"
+        except:
+            auth["ACK"] = "FAILED"
+            auth["message"] = "Something wrong happened"
+    else:
+        auth["ACK"] = "FAILED"
+        auth["message"] = "User doesnot exist with this emailId"
+
+    return jsonify(auth)
+
+
+@app.route('/user/is_verified/<string:mobile>', methods=["GET"])
+def getUserVerification(mobile) :
+    userInfo = {}
+    user = Participant.query.filter_by(mobileNumber=mobile).first()
+
+    if user == None:
+        userInfo["ACK"] = "FAILED"
+        return jsonify(userInfo)
+
+    if user.verified == 0:
+
+        otp = OTPs.query.filter_by(mobile=mobile)
+
+        session = db.session
+
+        if otp:
+            try:
+                session.delete(otp)
+                session.commit()
+            except:
+                session.rollback()
+                session.flush()
+        OTP = ''.join(random.choice(string.digits) for _ in range(6))
+        otp = OTPs(mobile=mobile, otp=otp)
+        print("sending otp")
+        status = sendOTP(user.firstName, user.mobileNumber, OTP)
+        print(status)
+        if not status:
+            return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
+
+        userInfo["ACK"] = "SUCCESS"
+        userInfo['verified'] = user.verified
+        return jsonify(userInfo)
+
 
 ################################################################
 #####################REGISTRATION###############################
@@ -401,9 +482,12 @@ def registerEvent():
   except:
     return jsonify({ 'ACK': 'FAILED' })
 
+
+
 @app.route('/', methods=['GET'])
 def homePage():
     return "Server is Running"
+
 
 
 ################################################################
@@ -413,3 +497,5 @@ def homePage():
 
 if __name__ == '__main__':
     app.run()
+    #For Local Host ( Over LAN )
+    # app.run("192.168.43.104", 8000)
