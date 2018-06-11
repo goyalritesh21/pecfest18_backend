@@ -24,14 +24,14 @@ categories = {
 
 app = Flask(__name__)
 
-# params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
-#
-# app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
-# For running on local host
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+# # For running on local host
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
 
