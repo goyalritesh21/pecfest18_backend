@@ -378,7 +378,7 @@ def signIn():
         auth["ACK"] = "FAILED"
         auth["message"] = "User doesnot exist with this emailId"
 
-    print(auth)
+   
     return jsonify(auth)
 
 
