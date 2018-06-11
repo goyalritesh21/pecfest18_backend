@@ -486,6 +486,6 @@ def homePage():
 
 if __name__ == '__main__':
 
-    # app.run()
+    app.run()
     # For Local Host ( Over LAN )
-    app.run("172.31.74.69", 8000)
+    # app.run("172.31.74.69", 8000)
