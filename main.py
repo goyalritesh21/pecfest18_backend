@@ -6,7 +6,7 @@ import random
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
-from sqlalchemy import or_
+from sqlalchemy import create_engine, or_
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
 categories = {
