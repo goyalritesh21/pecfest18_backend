@@ -6,7 +6,7 @@ import random
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
-from sqlalchemy import or_
+from sqlalchemy import create_engine, or_
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
 categories = {
@@ -23,6 +23,7 @@ categories = {
 ################################################################
 
 app = Flask(__name__)
+CORS(app)
 
 params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfestdb.database.windows.net,1433;Database=pecfestdb;Uid=pecfestdb@pecfestdb;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
@@ -33,18 +34,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-
-
-
 db = SQLAlchemy(app)
-CORS(app)
 
 ################################################################
 
 from models.model import pass_param
 
 pass_param(db)
-
 
 from models.event import Event
 from models.user import Participant
@@ -67,7 +63,6 @@ def genPecfestId(name, length=6):
   return proposedId
 
 db.create_all()
-db.session.commit()
 
 ################################################################
 #####################EVENT MANAGEMENT###########################
