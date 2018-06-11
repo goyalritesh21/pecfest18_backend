@@ -25,7 +25,7 @@ categories = {
 app = Flask(__name__)
 CORS(app)
 
-params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfestdb.database.windows.net,1433;Database=pecfestdb;Uid=pecfestdb@pecfestdb;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
