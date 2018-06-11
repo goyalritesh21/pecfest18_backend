@@ -67,6 +67,7 @@ def genPecfestId(name, length=6):
   return proposedId
 
 db.create_all()
+db.session.commit()
 
 ################################################################
 #####################EVENT MANAGEMENT###########################
