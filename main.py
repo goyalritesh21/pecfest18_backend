@@ -66,8 +66,7 @@ def genPecfestId(name, length=6):
       break
   return proposedId
 
-
-#db.create_all()
+db.create_all()
 
 ################################################################
 #####################EVENT MANAGEMENT###########################
