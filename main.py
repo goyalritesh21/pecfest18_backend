@@ -25,7 +25,7 @@ categories = {
 app = Flask(__name__)
 CORS(app)
 
-params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+params = urllib.parse.quote_plus("Driver={ODBC Driver 13 for SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
@@ -43,7 +43,7 @@ from models.model import pass_param
 pass_param(db)
 
 from models.event import Event
-from models.user import Participant
+from models.Registration import Participant
 from models.pecfestIds import PecfestIds
 from models.otps import OTPs
 from models.event_registration import EventRegistration
@@ -252,9 +252,9 @@ def createUser():
     verified = 0
     smsCounter = 0
 
-    alreadyUser = Participant.query.filter_by(mobileNumber=mobile).first()
+    alreadyUser = db.session.query(Participant).filter(or_(Participant.emailId == email, Participant.mobileNumber == mobile)).first()
     if alreadyUser:
-        return jsonify({'ACK': 'ALREADY', 'message': 'Phone number already registered.'})
+        return jsonify({'ACK': 'ALREADY', 'message': 'This user has already registered.'})
 
     user = Participant(pecfestId=pecfestId,
                        firstName=firstName,
