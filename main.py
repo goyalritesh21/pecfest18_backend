@@ -6,6 +6,7 @@ import random
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
+from sqlalchemy import or_
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
 categories = {
@@ -22,20 +23,28 @@ categories = {
 ################################################################
 
 app = Flask(__name__)
-CORS(app)
+
+# params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+#
+# app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+# For running on local host
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
-params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
 db = SQLAlchemy(app)
+CORS(app)
 
 ################################################################
 
 from models.model import pass_param
 
 pass_param(db)
+
 
 from models.event import Event
 from models.user import Participant
@@ -109,7 +118,6 @@ def createEvent():
     curr_session.commit()
     success = True
   except Exception as err:
-    print(err);
     curr_session.rollback()
     curr_session.flush()
 
@@ -193,16 +201,15 @@ def getEventFromCategory(eventCategory):
 #####################USER INFO##################################
 
 def sendOTP(name, mobile, otp):
-  data = dict()
-
+  data = {}
   data['user'] = 'onlineteam.pecfest'
   data['password'] = 'onlinesms'
   data['sid'] = 'PECCHD'
   data['msisdn'] = '91' + mobile
-  name = name.split(' ')[0]
-  data['msg'] = "Hi " + name + "! Welcome to PECFEST, 2017. Your OTP is " + otp + ". Enter this OTP into the website/app to get your PECFEST ID. Happy participating!"
+
+  data['msg'] = "Hi " + name + "! Welcome to PECFEST, 2018. Your OTP is " + otp + ". Enter this OTP into the website/app to get your PECFEST ID. Happy participating!"
   data['gwid'] = 2
-  data['fl'] = 0
+  data['fl'] = 1
   headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
 
   res = post('http://www.smslane.com//vendorsms/pushsms.aspx', data=data, headers=headers)
@@ -225,14 +232,17 @@ def sendOTP(name, mobile, otp):
         session.flush()
       return True
     else:
-      print(text)
       return False
 
 
 # Create User
 @app.route('/user/create', methods=['POST'])
 def createUser():
+
     data = request.get_json()
+
+    if data is None:
+        return jsonify({'ACK': 'FAILED', 'message': 'Malformed Request'})
 
     firstName = data['firstName']
     lastName = data['lastName']
@@ -241,7 +251,9 @@ def createUser():
     email = data['email']
     mobile = data['mobile']
     gender = data['gender']
-    accomodation = data['accomodation'] if "accomodation" in data else ""
+    password = data['password']
+
+    accomodation = data['accomodation'] if "accomodation" in data else "no"
     verified = 0
     smsCounter = 0
 
@@ -260,6 +272,7 @@ def createUser():
                        verified=verified,
                        smsCounter=smsCounter)
 
+    user.set_password(password)
     newPecfestId = PecfestIds(pecfestId=pecfestId)
 
     curr_session = db.session
@@ -270,7 +283,6 @@ def createUser():
         curr_session.commit()
         success = True
     except Exception as err:
-        print(err)
         curr_session.rollback()
         curr_session.flush()
 
@@ -311,7 +323,6 @@ def verifyUser():
   otp = OTPs.query.filter_by(mobile=mobile,
                 otp=o).first()
 
-  print(otp)
 
   if otp:
     curr_session = db.session
@@ -343,6 +354,66 @@ def verifyUser():
       return jsonify({ 'ACK': 'FAILED' })
   else:
     return jsonify({'ACK': 'FAILED', 'message': 'Wrong OTP'})
+
+@app.route('/user/signIn', methods=['POST'])
+def signIn():
+    data = request.get_json()
+    auth = {}
+    username = data['username']
+    password = data['password']
+
+    user = db.session.query(Participant).filter(or_(Participant.emailId == username , Participant.mobileNumber == username)).first()
+
+    if user:
+        try:
+            if (user.check_password(password)):
+                auth["ACK"] = "SUCCESS"
+            else:
+                auth["ACK"] = "FAILED"
+                auth["message"] = "WRONG USERNAME/PASSWORD"
+        except:
+            auth["ACK"] = "FAILED"
+            auth["message"] = "Something wrong happened"
+    else:
+        auth["ACK"] = "FAILED"
+        auth["message"] = "User doesnot exist with this emailId"
+
+   
+    return jsonify(auth)
+
+
+@app.route('/user/isVerified', methods=["POST"])
+def getUserVerification() :
+    userInfo = {}
+    data = request.get_json()
+    mobile = data['mobile']
+    user = Participant.query.filter_by(mobileNumber=mobile).first()
+
+    if user == None:
+        userInfo["ACK"] = "FAILED"
+        return jsonify(userInfo)
+
+    if user.verified == 0:
+
+        otp = OTPs.query.filter_by(mobile=mobile)
+
+        session = db.session
+
+        if otp:
+            try:
+                session.delete(otp)
+                session.commit()
+            except:
+                session.rollback()
+                session.flush()
+        OTP = ''.join(random.choice(string.digits) for _ in range(6))
+        status = sendOTP(user.firstName, user.mobileNumber, OTP)
+        if not status:
+            return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
+
+        userInfo["ACK"] = "SUCCESS"
+        userInfo['verified'] = user.verified
+        return jsonify(userInfo)
 
 
 ################################################################
@@ -401,9 +472,12 @@ def registerEvent():
   except:
     return jsonify({ 'ACK': 'FAILED' })
 
+
+
 @app.route('/', methods=['GET'])
 def homePage():
     return "Server is Running"
+
 
 
 ################################################################
@@ -412,4 +486,7 @@ def homePage():
 ################################################################
 
 if __name__ == '__main__':
-    app.run()
+
+    # app.run()
+    # For Local Host ( Over LAN )
+    app.run("172.31.74.69", 8000)
