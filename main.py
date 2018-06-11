@@ -6,6 +6,7 @@ import random
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
+from sqlalchemy import or_
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
 categories = {
@@ -358,10 +359,10 @@ def verifyUser():
 def signIn():
     data = request.get_json()
     auth = {}
-    email = data['email']
+    username = data['username']
     password = data['password']
 
-    user = Participant.query.filter_by(emailId=email).first()
+    user = db.session.query(Participant).filter(or_(Participant.emailId == username , Participant.mobileNumber == username)).first()
 
     if user:
         try:
@@ -377,6 +378,7 @@ def signIn():
         auth["ACK"] = "FAILED"
         auth["message"] = "User doesnot exist with this emailId"
 
+    print(auth)
     return jsonify(auth)
 
 
