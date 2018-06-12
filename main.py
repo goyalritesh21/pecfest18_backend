@@ -8,6 +8,7 @@ from flask_cors import CORS
 from requests import post
 from sqlalchemy import or_
 
+
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
 categories = {
   "NATYAMANCH": 1,
@@ -209,9 +210,8 @@ def sendOTP(name, mobile, otp):
 
   data['msg'] = "Hi " + name + "! Welcome to PECFEST, 2018. Your OTP is " + otp + ". Enter this OTP into the website/app to get your PECFEST ID. Happy participating!"
   data['gwid'] = 2
-  data['fl'] = 1
+  data['fl'] = 2
   headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
-
   res = post('http://www.smslane.com//vendorsms/pushsms.aspx', data=data, headers=headers)
   if res.status_code is not 200:
     return False
@@ -220,11 +220,12 @@ def sendOTP(name, mobile, otp):
     if 'Message Id' in text:
       messageId = text.split(' : ')
       sms = SentSMS(smsId=messageId, mobile=mobile, smsType=1, status=1)
-
+      otps = OTPs(mobile=mobile,otp=otp)
       session = db.session
       success = False
       try:
         session.add(sms)
+        session.add(otps)
         session.commit()
         success = True
       except:
@@ -319,16 +320,13 @@ def verifyUser():
   json = request.get_json()
   o = json['otp']
   mobile = json['mobile']
-
   otp = OTPs.query.filter_by(mobile=mobile,
                 otp=o).first()
-
-
   if otp:
     curr_session = db.session
-    user = Participant.query.filter_by(mobile=mobile).update(dict(verified=1))
-    user = Participant.query.filter_by(mobile=mobile).first()
-
+    user = Participant.query.filter_by(mobileNumber=mobile).update(dict(verified=1))
+    curr_session.commit()
+    user = Participant.query.filter_by(mobileNumber=mobile).first()
     if user:
       success = False
       try:
@@ -341,12 +339,12 @@ def verifyUser():
 
 
       if success:
-        userInfo['ACK'] = 'SUCCESS'
+        userInfo["ACK"] = "SUCCESS"
+        userInfo["firstName"] = user.firstName
+        userInfo["lastName"] = user.lastName
         userInfo["pecfestId"] = user.pecfestId
-        userInfo["name"] = user.name
         userInfo["college"] = user.college
         userInfo["gender"] = user.gender
-
         return jsonify(userInfo)
       else:
         return jsonify({'ACK': 'FAILED' })
@@ -378,7 +376,6 @@ def signIn():
         auth["ACK"] = "FAILED"
         auth["message"] = "User doesnot exist with this emailId"
 
-    print(auth)
     return jsonify(auth)
 
 
@@ -395,8 +392,7 @@ def getUserVerification() :
 
     if user.verified == 0:
 
-        otp = OTPs.query.filter_by(mobile=mobile)
-
+        otp = OTPs.query.filter_by(mobile=mobile).first()
         session = db.session
 
         if otp:
