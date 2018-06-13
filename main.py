@@ -6,7 +6,7 @@ import random
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
@@ -219,18 +219,24 @@ def sendOTP(name, mobile, otp):
     text = res.text
     if 'Message Id' in text:
       messageId = text.split(' : ')
-      sms = SentSMS(smsId=messageId, mobile=mobile, smsType=1, status=1)
+      sms = SentSMS(smsId=messageId[1], mobile=mobile, smsType=1, status=1)
       otps = OTPs(mobile=mobile,otp=otp)
       session = db.session
       success = False
       try:
         session.add(sms)
-        session.add(otps)
         session.commit()
-        success = True
-      except:
+      except Exception as e:
         session.rollback()
         session.flush()
+      try:
+          session.add(otps)
+          session.commit()
+          success = True
+      except Exception as e:
+          session.rollback()
+          session.flush()
+
       return True
     else:
       return False
@@ -275,7 +281,10 @@ def createUser():
 
     user.set_password(password)
     newPecfestId = PecfestIds(pecfestId=pecfestId)
-
+    OTP = ''.join(random.choice(string.digits) for _ in range(6))
+    status = sendOTP(user.firstName, user.mobileNumber, OTP)
+    if not status:
+        return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
     curr_session = db.session
     success = False
     try:
@@ -343,7 +352,7 @@ def verifyUser():
         userInfo["firstName"] = user.firstName
         userInfo["lastName"] = user.lastName
         userInfo["pecfestId"] = user.pecfestId
-        userInfo["college"] = user.college
+        userInfo["college"] = user.collegeName
         userInfo["gender"] = user.gender
         return jsonify(userInfo)
       else:
@@ -405,12 +414,14 @@ def getUserVerification() :
                 session.flush()
         OTP = ''.join(random.choice(string.digits) for _ in range(6))
         status = sendOTP(user.firstName, user.mobileNumber, OTP)
+        # status = True
         if not status:
             return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
 
-        userInfo["ACK"] = "SUCCESS"
-        userInfo['verified'] = user.verified
-        return jsonify(userInfo)
+    userInfo["ACK"] = "SUCCESS"
+    userInfo['verified'] = user.verified
+    return jsonify(userInfo)
+
 
 
 ################################################################
