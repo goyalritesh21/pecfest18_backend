@@ -465,23 +465,45 @@ def registerEvent():
     return jsonify({ 'ACK': 'FAILED' })
 
 
-## Get user's registered event's details (for dashboard)
-@app.route('/dashboard/<string:pecfestId>', methods=['GET'])
+## Get user's registered event's details
 def getUserRegisteredEvents(pecfestId):
 
   events = db.session.query(Event).join(EventRegistration.eventId_relation).\
   filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
 
-  registeredEvents = []       ## it will be a list of dicts,
-                            ## each entry of the list contains information of an event which the user has registered
+  registeredEvents = []
 
   for i in range(0, len(events)):
-    registeredEvents[i]["name"] = events[i]["eventName"]      # the keys on right are as defined in models/event.py
-    registeredEvents[i]["day"] = events[i]["day"]
-    registeredEvents[i]["venue"] = events[i]["location"]
-    registeredEvents[i]["time"] = events[i]["time"]
+    events_dict = {}
+    events_dict["name"] = events[i].eventName
+    events_dict["day"] = events[i].day
+    events_dict["venue"] = events[i].location
+    events_dict["time"] = events[i].time
+    registeredEvents += [events_dict]
 
   return jsonify(registeredEvents)      ## if no events registered, then this list will be of zero length
+
+
+## Get user notifications
+def getNotifications(pecfestId):
+  notifs = db.session.query(Notifications, event).join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(Notifications.notif_rel).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
+
+  user_notifications = []
+
+  print(type(notifs))
+  for i in range(0, len(notifs)):
+    #print(type(notifs[i]))
+    #print(notifs[i][1].eventName)
+    notif_dict = {}
+    notif_dict["eventName"] = notifs[i][1].eventName
+    notif_dict["notificationTitle"] = notifs[i][0].notificationTitle
+    notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
+    user_notifications += [notif_dict]
+  
+  return jsonify(user_notifications)          ## ## if no events registered, then this list will be of zero length
+
 
 
 
