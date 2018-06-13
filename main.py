@@ -465,6 +465,25 @@ def registerEvent():
     return jsonify({ 'ACK': 'FAILED' })
 
 
+## Get user's registered event's details (for dashboard)
+@app.route('/dashboard/<string:pecfestId>', methods=['GET'])
+def getUserRegisteredEvents(pecfestId):
+
+  events = db.session.query(Event).join(EventRegistration.eventId_relation).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
+
+  registeredEvents = []       ## it will be a list of dicts,
+                            ## each entry of the list contains information of an event which the user has registered
+
+  for i in range(0, len(events)):
+    registeredEvents[i]["name"] = events[i]["eventName"]      # the keys on right are as defined in models/event.py
+    registeredEvents[i]["day"] = events[i]["day"]
+    registeredEvents[i]["venue"] = events[i]["location"]
+    registeredEvents[i]["time"] = events[i]["time"]
+
+  return jsonify(registeredEvents)      ## if no events registered, then this list will be of zero length
+
+
 
 @app.route('/', methods=['GET'])
 def homePage():
