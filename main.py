@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
 from sqlalchemy import or_, func
+from sqlalchemy import create_engine, or_
 
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
@@ -24,21 +25,18 @@ categories = {
 ################################################################
 
 app = Flask(__name__)
+CORS(app)
 
-# params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
-#
-# app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+params = urllib.parse.quote_plus("Driver={ODBC Driver 13 for SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
-# For running on local host
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
-
-
+# # For running on local host
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-CORS(app)
 
 ################################################################
 
@@ -46,9 +44,8 @@ from models.model import pass_param
 
 pass_param(db)
 
-
 from models.event import Event
-from models.user import Participant
+from models.Registration import Participant
 from models.pecfestIds import PecfestIds
 from models.otps import OTPs
 from models.event_registration import EventRegistration
@@ -67,8 +64,7 @@ def genPecfestId(name, length=6):
       break
   return proposedId
 
-
-#db.create_all()
+db.create_all()
 
 ################################################################
 #####################EVENT MANAGEMENT###########################
@@ -264,9 +260,9 @@ def createUser():
     verified = 0
     smsCounter = 0
 
-    alreadyUser = Participant.query.filter_by(mobileNumber=mobile).first()
+    alreadyUser = db.session.query(Participant).filter(or_(Participant.emailId == email, Participant.mobileNumber == mobile)).first()
     if alreadyUser:
-        return jsonify({'ACK': 'ALREADY', 'message': 'Phone number already registered.'})
+        return jsonify({'ACK': 'ALREADY', 'message': 'This user has already registered.'})
 
     user = Participant(pecfestId=pecfestId,
                        firstName=firstName,
@@ -494,7 +490,6 @@ def homePage():
 ################################################################
 
 if __name__ == '__main__':
-
-    # app.run()
+    app.run()
     # For Local Host ( Over LAN )
-    app.run("172.31.74.69", 8000)
+    # app.run("172.31.74.69", 8000)
