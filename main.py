@@ -478,12 +478,26 @@ def registerEvent():
 
 
 ## Get user's registered event's details
-def getUserRegisteredEvents(pecfestId):
+@app.route('/userEvents', methods=['POST'])
+## Please pass the input pecfestid as {"pecfestId" : "value_of_pecfestId" }
+def getUserRegisteredEvents():
 
-  events = db.session.query(Event).join(EventRegistration.eventId_relation).\
+  pecfestId=request.json["pecfestId"]
+
+  # get the user's registered events using eventregistrations where memberId = user's pecfestId or leaderId = user's pecfestId
+  # Eventregistration.eventId_relation is the relation between the foreign key of Event registration and primary key 'eventId' of Event
+  # and is defined in /models/event_registration.py
+  
+  events = db.session.query(Event).\
+  join(EventRegistration.eventId_relation).\
   filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
+  
+  #### Also try :- 
+  '''events = db.session.query(Event).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  join(EventRegistration.eventId_relation).all()'''
 
-  registeredEvents = []
+  registeredEvents = []      ## a list of dicts, each entry of the list stores information of the registered event
 
   for i in range(0, len(events)):
     events_dict = {}
@@ -497,12 +511,32 @@ def getUserRegisteredEvents(pecfestId):
 
 
 ## Get user notifications
-def getNotifications(pecfestId):
-  notifs = db.session.query(Notifications, event).join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
-  join(Notifications.notif_rel).\
-  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
+@app.route('/userNotifications', methods=['POST'])
+## Please pass the input pecfestId as {"pecfestId" : "value_of_pecfestId" }
+def getNotifications():
 
-  user_notifications = []
+  pecfestId = request.json["pecfestId"]
+
+  ## get the notifications pertaining to user's registered events using Notifications and EventRegistration table 
+  ## filtered by memberId = user's pecfestId or leaderId = user's pecfestId
+
+  ## notif_ rel is the relation between the foreign key 'Notifications.eventId' and primary key 'eventId' of Event
+  ## This has been used to get the name of the event using the eventId in notifications
+
+  notifs = db.session.query(Notifications, event).\
+  join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(Notifications.notif_rel).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  all()
+
+  ## Also try
+  '''notifs = db.session.query(Notifications, event).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(Notifications.notif_rel).\
+  all()'''
+
+  user_notifications = []         ## a list of dicts, each entry of the list stores notification of a registered event
 
   print(type(notifs))
   for i in range(0, len(notifs)):
@@ -514,7 +548,7 @@ def getNotifications(pecfestId):
     notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
     user_notifications += [notif_dict]
   
-  return jsonify(user_notifications)          ## ## if no events registered, then this list will be of zero length
+  return jsonify(user_notifications)          ##if no events registered, then this list will be of zero length
 
 
 
