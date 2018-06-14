@@ -478,12 +478,10 @@ def registerEvent():
 
 
 ## Get user's registered event's details
-@app.route('/userEvents', methods=['POST'])
-## Please pass the input pecfestid as {"pecfestId" : "value_of_pecfestId" }
-def getUserRegisteredEvents():
+@app.route('/dashboard/<string:pecfestId>/events', methods=['GET'])
+def getUserDetailsforDashboard():
 
-  pecfestId=request.json["pecfestId"]
-
+  #############################################################################################
   # get the user's registered events using eventregistrations where memberId = user's pecfestId or leaderId = user's pecfestId
   # Eventregistration.eventId_relation is the relation between the foreign key of Event registration and primary key 'eventId' of Event
   # and is defined in /models/event_registration.py
@@ -507,16 +505,7 @@ def getUserRegisteredEvents():
     events_dict["time"] = events[i].time
     registeredEvents += [events_dict]
 
-  return jsonify(registeredEvents)      ## if no events registered, then this list will be of zero length
-
-
-## Get user notifications
-@app.route('/userNotifications', methods=['POST'])
-## Please pass the input pecfestId as {"pecfestId" : "value_of_pecfestId" }
-def getNotifications():
-
-  pecfestId = request.json["pecfestId"]
-
+  #################################################################################################
   ## get the notifications pertaining to user's registered events using Notifications and EventRegistration table 
   ## filtered by memberId = user's pecfestId or leaderId = user's pecfestId
 
@@ -538,17 +527,20 @@ def getNotifications():
 
   user_notifications = []         ## a list of dicts, each entry of the list stores notification of a registered event
 
-  print(type(notifs))
   for i in range(0, len(notifs)):
-    #print(type(notifs[i]))
-    #print(notifs[i][1].eventName)
     notif_dict = {}
     notif_dict["eventName"] = notifs[i][1].eventName
     notif_dict["notificationTitle"] = notifs[i][0].notificationTitle
     notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
     user_notifications += [notif_dict]
   
-  return jsonify(user_notifications)          ##if no events registered, then this list will be of zero length
+  final_json = {}
+  final_json["total_events_registered"] = len(registeredEvents)
+  final_json["total_notifications"] = len(user_notifications)
+  final_json["registered_events_list"] = registeredEvents
+  final_json["notifications_list"] = user_notifications
+
+  return jsonify(final_json)
 
 
 
