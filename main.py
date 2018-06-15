@@ -479,7 +479,7 @@ def registerEvent():
 
 ## Get user's registered event's details
 @app.route('/dashboard/<string:pecfestId>/events', methods=['GET'])
-def getUserDetailsforDashboard():
+def getUserDetailsforDashboard(pecfestId):
 
   #############################################################################################
   # get the user's registered events using eventregistrations where memberId = user's pecfestId or leaderId = user's pecfestId
@@ -505,6 +505,21 @@ def getUserDetailsforDashboard():
     events_dict["time"] = events[i].time
     registeredEvents += [events_dict]
 
+  user_notifications = getUserNotifications(pecfestId)
+
+
+  final_json = {}
+  final_json["total_events_registered"] = len(registeredEvents)
+  final_json["total_notifications"] = len(user_notifications)
+  final_json["registered_events_list"] = registeredEvents
+  final_json["notifications_list"] = user_notifications
+
+  return jsonify(final_json)
+
+
+
+## Utility function to get the notifications of the user
+def getUserNotifications(pecfestId):
   #################################################################################################
   ## get the notifications pertaining to user's registered events using Notifications and EventRegistration table 
   ## filtered by memberId = user's pecfestId or leaderId = user's pecfestId
@@ -534,13 +549,7 @@ def getUserDetailsforDashboard():
     notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
     user_notifications += [notif_dict]
   
-  final_json = {}
-  final_json["total_events_registered"] = len(registeredEvents)
-  final_json["total_notifications"] = len(user_notifications)
-  final_json["registered_events_list"] = registeredEvents
-  final_json["notifications_list"] = user_notifications
-
-  return jsonify(final_json)
+  return user_notifications
 
 
 
