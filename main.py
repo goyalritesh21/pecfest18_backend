@@ -478,9 +478,11 @@ def registerEvent():
 
 
 ## Get user's registered event's details
-@app.route('/dashboard/<string:pecfestId>/events', methods=['GET'])
-def getUserDetailsforDashboard(pecfestId):
+@app.route('/user/registeredEvents', methods=['GET'])
+## eg /user/registeredEvents?id=AAKPYC1TV
+def getUserRegisteredEvents():
 
+  pecfestId = request.args['id']
   #############################################################################################
   # get the user's registered events using eventregistrations where memberId = user's pecfestId or leaderId = user's pecfestId
   # Eventregistration.eventId_relation is the relation between the foreign key of Event registration and primary key 'eventId' of Event
@@ -505,21 +507,16 @@ def getUserDetailsforDashboard(pecfestId):
     events_dict["time"] = events[i].time
     registeredEvents += [events_dict]
 
-  user_notifications = getUserNotifications(pecfestId)
-
-
-  final_json = {}
-  final_json["total_events_registered"] = len(registeredEvents)
-  final_json["total_notifications"] = len(user_notifications)
-  final_json["registered_events_list"] = registeredEvents
-  final_json["notifications_list"] = user_notifications
-
-  return jsonify(final_json)
+  return jsonify(registeredEvents)
 
 
 
-## Utility function to get the notifications of the user
-def getUserNotifications(pecfestId):
+
+@app.route('/user/notifications', method=['GET'])
+## eg /user/notifications?id=AAKPYC1TV
+def getUserNotifications():
+
+  pecfestId = request.args['id']
   #################################################################################################
   ## get the notifications pertaining to user's registered events using Notifications and EventRegistration table 
   ## filtered by memberId = user's pecfestId or leaderId = user's pecfestId
@@ -549,7 +546,7 @@ def getUserNotifications(pecfestId):
     notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
     user_notifications += [notif_dict]
   
-  return user_notifications
+  return jsonify(user_notifications)
 
 
 
