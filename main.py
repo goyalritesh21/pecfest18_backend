@@ -512,7 +512,7 @@ def getUserRegisteredEvents():
 
 
 
-@app.route('/user/notifications', method=['GET'])
+@app.route('/user/notifications', methods=['GET'])
 ## eg /user/notifications?id=AAKPYC1TV
 def getUserNotifications():
 
@@ -524,7 +524,7 @@ def getUserNotifications():
   ## notif_ rel is the relation between the foreign key 'Notifications.eventId' and primary key 'eventId' of Event
   ## This has been used to get the name of the event using the eventId in notifications
 
-  notifs = db.session.query(Notifications, event).\
+  notifs = db.session.query(Notifications, Event).\
   join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
   join(Notifications.notif_rel).\
   filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
