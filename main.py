@@ -266,7 +266,11 @@ def createUser():
 
     alreadyUser = Participant.query.filter_by(mobileNumber=mobile).first()
     if alreadyUser:
-        return jsonify({'ACK': 'ALREADY', 'message': 'Phone number already registered.'})
+        if alreadyUser.verified == 1:
+            return jsonify({'ACK': 'ALREADY', 'message': 'Phone number already registered.'})
+        else:
+            return jsonify({'ACK': 'ALREADY', 'message': 'Verifying phone number...'})
+
 
     user = Participant(pecfestId=pecfestId,
                        firstName=firstName,
@@ -281,10 +285,6 @@ def createUser():
 
     user.set_password(password)
     newPecfestId = PecfestIds(pecfestId=pecfestId)
-    OTP = ''.join(random.choice(string.digits) for _ in range(6))
-    status = sendOTP(user.firstName, user.mobileNumber, OTP)
-    if not status:
-        return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
     curr_session = db.session
     success = False
     try:
@@ -414,7 +414,7 @@ def getUserVerification() :
                 session.flush()
         OTP = ''.join(random.choice(string.digits) for _ in range(6))
         status = sendOTP(user.firstName, user.mobileNumber, OTP)
-        # status = True
+        status = True
         if not status:
             return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
 
@@ -497,4 +497,4 @@ if __name__ == '__main__':
 
     # app.run()
     # For Local Host ( Over LAN )
-    app.run("172.31.74.69", 8000)
+    app.run("localhost", 8000)
