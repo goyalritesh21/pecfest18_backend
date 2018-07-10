@@ -9,8 +9,8 @@ from requests import post
 from sqlalchemy import or_, func
 from sqlalchemy import create_engine, or_
 
-
-eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
+# have replaced all eventID with event_id
+'''eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
 categories = {
   "NATYAMANCH": 1,
   "NRITYAMANCH": 2,
@@ -22,19 +22,19 @@ categories = {
   "ENTREPRENEURICAL ARTS": 8,
 }
 
-################################################################
+################################################################'''
 
 app = Flask(__name__)
-CORS(app)
+#CORS(app)
 
-params = urllib.parse.quote_plus("Driver={ODBC Driver 13 for SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+#params = urllib.parse.quote_plus("Driver={ODBC Driver 13 for SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+#app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
+#app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 # # For running on local host
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI']='mysql://root:hello@localhost/pecfest'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
@@ -45,16 +45,17 @@ from models.model import pass_param
 pass_param(db)
 
 from models.event import Event
-from models.Registration import Participant
-from models.pecfestIds import PecfestIds
-from models.otps import OTPs
+#from models.Registration import Participant
+#from models.otps import OTPs
+
+from models.pecfestIds import Pecfestids
 from models.event_registration import EventRegistration
-from models.sent_sms import SentSMS
+#from models.sent_sms import SentSMS
 from models.notifications import Notifications
 
 ################################################################
 
-def genPecfestId(name, length=6):
+'''def genPecfestId(name, length=6):
   done=False
   proposedId = ''
   while not done:
@@ -124,18 +125,18 @@ def createEvent():
   return jsonify({'ACK': 'FAILED'})
 
 # Get event details
-@app.route('/event/<int:eventId>', methods=['GET'])
-def getEventDetails(eventId):
+@app.route('/event/<int:event_id>', methods=['GET'])
+def getEventDetails(event_id):
 
   eventInfo = {}
-  event = Event.query.filter_by(eventId=eventId).first()
+  event = Event.query.filter_by(event_id=event_id).first()
 
   if event == None:
     eventInfo["ACK"] = "FAILED"
     return jsonify(eventInfo)
 
   eventInfo["ACK"] = "SUCCESS"
-  eventInfo["id"] = event.eventId
+  eventInfo["id"] = event.event_id
   eventInfo["name"] = event.name
   eventInfo["coordinators"] = event.coordinators
   eventInfo["location"] = event.location
@@ -172,7 +173,7 @@ def getEventFromCategory(eventCategory):
   for event in events:
     eventInfo = {}
 
-    eventInfo["id"] = event.eventId
+    eventInfo["id"] = event.event_id
     eventInfo["name"] = event.name
     eventInfo["coordinators"] = event.coordinators
     eventInfo["location"] = event.location
@@ -428,8 +429,8 @@ def registerEvent():
   try:
     json = request.get_json()
 
-    eventId = json['eventId']
-    event = Event.query.filter_by(eventId=eventId).first()
+    event_id = json['event_id']
+    event = Event.query.filter_by(event_id=event_id).first()
 
     team = [ member for member in json['team'] ]
     teamLeaderId = json['leader']
@@ -444,7 +445,7 @@ def registerEvent():
 
     ## check whether users are already registered or not
     for pecfestId in team:
-      reg = EventRegistration.query.filter_by(memberId=pecfestId, eventId=eventId).first()
+      reg = EventRegistration.query.filter_by(memberId=pecfestId, event_id=event_id).first()
       if reg:
         return jsonify({ 'ACK': 'FAILED', 'message': pecfestId + ' is already registered to this event.'})
 
@@ -452,7 +453,7 @@ def registerEvent():
     regs = []
     for pecfestId in team:
       reg = EventRegistration(
-              eventId=eventId,
+              event_id=event_id,
               memberId=pecfestId,
               leaderId=teamLeaderId)
       regs.append(reg)
@@ -476,6 +477,7 @@ def registerEvent():
   except:
     return jsonify({ 'ACK': 'FAILED' })
 
+'''
 
 ## Get user's registered event's details
 @app.route('/user/registeredEvents', methods=['GET'])
@@ -485,26 +487,29 @@ def getUserRegisteredEvents():
   pecfestId = request.args['id']
   #############################################################################################
   # get the user's registered events using eventregistrations where memberId = user's pecfestId or leaderId = user's pecfestId
-  # Eventregistration.eventId_relation is the relation between the foreign key of Event registration and primary key 'eventId' of Event
+  # Eventregistration.event_id_relation is the relation between the foreign key of Event registration and primary key 'event_id' of Event
   # and is defined in /models/event_registration.py
   
   events = db.session.query(Event).\
-  join(EventRegistration.eventId_relation).\
-  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
-  
+  join(EventRegistration.event_id_relation).\
+  filter(or_(EventRegistration.event_id == pecfestId)).all()
+  # filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
+
   #### Also try :- 
   '''events = db.session.query(Event).\
   filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
-  join(EventRegistration.eventId_relation).all()'''
+  join(EventRegistration.event_id_relation).all()'''
 
   registeredEvents = []      ## a list of dicts, each entry of the list stores information of the registered event
 
   for i in range(0, len(events)):
     events_dict = {}
-    events_dict["name"] = events[i].eventName
+    events_dict["name"] = events[i].event_name
     events_dict["day"] = events[i].day
-    events_dict["venue"] = events[i].location
-    events_dict["time"] = events[i].time
+    events_dict["venue"] = events[i].venue
+    events_dict["time"] = events[i].timeofevent
+    events_dict["eventid"]=events[i].event_id
+    #events_dict["clubId"]=events[i].clubid
     registeredEvents += [events_dict]
 
   return jsonify(registeredEvents)
@@ -521,19 +526,21 @@ def getUserNotifications():
   ## get the notifications pertaining to user's registered events using Notifications and EventRegistration table 
   ## filtered by memberId = user's pecfestId or leaderId = user's pecfestId
 
-  ## notif_ rel is the relation between the foreign key 'Notifications.eventId' and primary key 'eventId' of Event
-  ## This has been used to get the name of the event using the eventId in notifications
+  ## notif_ rel is the relation between the foreign key 'Notifications.event_id' and primary key 'event_id' of Event
+  ## This has been used to get the name of the event using the event_id in notifications
 
   notifs = db.session.query(Notifications, Event).\
-  join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(EventRegistration, Notifications.event_id == EventRegistration.event_id).\
   join(Notifications.notif_rel).\
-  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  filter(or_(EventRegistration.event_id== pecfestId)).\
   all()
+  #  filter(or_(EventRegistration.event_id== pecfestId , EventRegistration.leaderId == pecfestId)).\
+
 
   ## Also try
   '''notifs = db.session.query(Notifications, event).\
   filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
-  join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(EventRegistration, Notifications.event_id == EventRegistration.event_id).\
   join(Notifications.notif_rel).\
   all()'''
 
@@ -541,9 +548,10 @@ def getUserNotifications():
 
   for i in range(0, len(notifs)):
     notif_dict = {}
-    notif_dict["eventName"] = notifs[i][1].eventName
-    notif_dict["notificationTitle"] = notifs[i][0].notificationTitle
-    notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
+    notif_dict["eventName"] = notifs[i][1].event_name
+    notif_dict["timeofupdate"] = notifs[i][0].timeofupdate
+    notif_dict["notificationDetails"] = notifs[i][0].notif
+    #notif_dict["notificationId"]=notifs[i][0].notif_id
     user_notifications += [notif_dict]
   
   return jsonify(user_notifications)

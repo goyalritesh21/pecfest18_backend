@@ -2,15 +2,12 @@ from models.model import db
 from sqlalchemy.orm import relationship
 
 class EventRegistration(db.Model):
+	__tablename__ = 'Event_reg'
 
-	__tablename__ = 'Registration'
+	pecfestid = db.Column(db.Integer,db.ForeignKey('Pecfestids.id'),primary_key = True ,nullable=False)
+	event_id = db.Column(db.Integer, db.ForeignKey('Event.event_id'), nullable=False)
 
-	id = db.Column(db.Integer, primary_key=True)
-	eventId = db.Column(db.Integer, db.ForeignKey('Event.eventId'), nullable=False)
-	memberId = db.Column(db.String(10), db.ForeignKey('Participant.pecfestId'), nullable=False)
-	leaderId = db.Column(db.String(10), db.ForeignKey('Participant.pecfestId'), nullable=False)
-
-	eventId_relation = relationship('Event')
+	event_id_relation = relationship('Event')
 
 	def as_dict(self):
 		return {c.name: getattr(self, c.name) for c in self.__tablename__.columns}
