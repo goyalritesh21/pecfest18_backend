@@ -262,7 +262,10 @@ def createUser():
 
     alreadyUser = db.session.query(Participant).filter(or_(Participant.emailId == email, Participant.mobileNumber == mobile)).first()
     if alreadyUser:
-        return jsonify({'ACK': 'ALREADY', 'message': 'This user has already registered.'})
+        if alreadyUser.verified == 1:
+            return jsonify({'ACK': 'ALREADY', 'message': 'Phone number already registered.'})
+        else:
+            return jsonify({'ACK': 'ALREADY', 'message': 'Verifying phone number...'})
 
     user = Participant(pecfestId=pecfestId,
                        firstName=firstName,
@@ -406,7 +409,7 @@ def getUserVerification() :
                 session.flush()
         OTP = ''.join(random.choice(string.digits) for _ in range(6))
         status = sendOTP(user.firstName, user.mobileNumber, OTP)
-        # status = True
+        status = True
         if not status:
             return jsonify({'ACK': 'FAILED', 'message': 'Unable to send OTP.'})
 
@@ -545,20 +548,13 @@ def getUserNotifications():
   return jsonify(user_notifications)
 
 
-
-
 @app.route('/', methods=['GET'])
 def homePage():
     return "Server is Running"
 
-
-
 ################################################################
-
-
 ################################################################
 
 if __name__ == '__main__':
     app.run()
     # For Local Host ( Over LAN )
-    # app.run("172.31.74.69", 8000)
