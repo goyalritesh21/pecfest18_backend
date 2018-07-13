@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from requests import post
 from sqlalchemy import or_, func
+from sqlalchemy import create_engine, or_
 
 
 eventTypes = { 'Technical': 1, 'Cultural': 2, 'Lectures': 3, 'Workshops': 4, 'Shows': 5 }
@@ -24,21 +25,18 @@ categories = {
 ################################################################
 
 app = Flask(__name__)
+CORS(app)
 
-# params = urllib.parse.quote_plus("Driver={SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+# params = urllib.parse.quote_plus("Driver={ODBC Driver 13 for SQL Server};Server=tcp:pecfest-storage.database.windows.net,1433;Database=Pecfest;Uid=maverick@pecfest-storage;Pwd=Pecfest2018;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 #
 # app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc:///?odbc_connect=%s" % params
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
-# For running on local host
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pecfest:Pass!1234@localhost/pecfest18Db'
+# # For running on local host
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://sql12246172:7FrjTFAlQ2@sql12.freemysqlhosting.net/sql12246172'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-
-
-
 db = SQLAlchemy(app)
-CORS(app)
 
 ################################################################
 
@@ -46,9 +44,8 @@ from models.model import pass_param
 
 pass_param(db)
 
-
 from models.event import Event
-from models.user import Participant
+from models.Registration import Participant
 from models.pecfestIds import PecfestIds
 from models.otps import OTPs
 from models.event_registration import EventRegistration
@@ -67,8 +64,7 @@ def genPecfestId(name, length=6):
       break
   return proposedId
 
-
-#db.create_all()
+db.create_all()
 
 ################################################################
 #####################EVENT MANAGEMENT###########################
@@ -264,13 +260,12 @@ def createUser():
     verified = 0
     smsCounter = 0
 
-    alreadyUser = Participant.query.filter_by(mobileNumber=mobile).first()
+    alreadyUser = db.session.query(Participant).filter(or_(Participant.emailId == email, Participant.mobileNumber == mobile)).first()
     if alreadyUser:
         if alreadyUser.verified == 1:
             return jsonify({'ACK': 'ALREADY', 'message': 'Phone number already registered.'})
         else:
             return jsonify({'ACK': 'ALREADY', 'message': 'Verifying phone number...'})
-
 
     user = Participant(pecfestId=pecfestId,
                        firstName=firstName,
@@ -481,20 +476,85 @@ def registerEvent():
     return jsonify({ 'ACK': 'FAILED' })
 
 
+## Get user's registered event's details
+@app.route('/user/registeredEvents', methods=['GET'])
+## eg /user/registeredEvents?id=AAKPYC1TV
+def getUserRegisteredEvents():
+
+  pecfestId = request.args['id']
+  #############################################################################################
+  # get the user's registered events using eventregistrations where memberId = user's pecfestId or leaderId = user's pecfestId
+  # Eventregistration.eventId_relation is the relation between the foreign key of Event registration and primary key 'eventId' of Event
+  # and is defined in /models/event_registration.py
+  
+  events = db.session.query(Event).\
+  join(EventRegistration.eventId_relation).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).all()
+  
+  #### Also try :- 
+  '''events = db.session.query(Event).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  join(EventRegistration.eventId_relation).all()'''
+
+  registeredEvents = []      ## a list of dicts, each entry of the list stores information of the registered event
+
+  for i in range(0, len(events)):
+    events_dict = {}
+    events_dict["name"] = events[i].eventName
+    events_dict["day"] = events[i].day
+    events_dict["venue"] = events[i].location
+    events_dict["time"] = events[i].time
+    registeredEvents += [events_dict]
+
+  return jsonify(registeredEvents)
+
+
+
+
+@app.route('/user/notifications', methods=['GET'])
+## eg /user/notifications?id=AAKPYC1TV
+def getUserNotifications():
+
+  pecfestId = request.args['id']
+  #################################################################################################
+  ## get the notifications pertaining to user's registered events using Notifications and EventRegistration table 
+  ## filtered by memberId = user's pecfestId or leaderId = user's pecfestId
+
+  ## notif_ rel is the relation between the foreign key 'Notifications.eventId' and primary key 'eventId' of Event
+  ## This has been used to get the name of the event using the eventId in notifications
+
+  notifs = db.session.query(Notifications, Event).\
+  join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(Notifications.notif_rel).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  all()
+
+  ## Also try
+  '''notifs = db.session.query(Notifications, event).\
+  filter(or_(EventRegistration.memberId == pecfestId , EventRegistration.leaderId == pecfestId)).\
+  join(EventRegistration, Notifications.eventId == EventRegistration.eventId).\
+  join(Notifications.notif_rel).\
+  all()'''
+
+  user_notifications = []         ## a list of dicts, each entry of the list stores notification of a registered event
+
+  for i in range(0, len(notifs)):
+    notif_dict = {}
+    notif_dict["eventName"] = notifs[i][1].eventName
+    notif_dict["notificationTitle"] = notifs[i][0].notificationTitle
+    notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
+    user_notifications += [notif_dict]
+  
+  return jsonify(user_notifications)
+
 
 @app.route('/', methods=['GET'])
 def homePage():
     return "Server is Running"
 
-
-
 ################################################################
-
-
 ################################################################
 
 if __name__ == '__main__':
-
-    # app.run()
+    app.run()
     # For Local Host ( Over LAN )
-    app.run("localhost", 8000)
