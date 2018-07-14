@@ -359,8 +359,8 @@ def verifyUser():
 
 @app.route('/user/signIn', methods=['POST'])
 def signIn():
-    data = request.get_json()
     auth = {}
+    data = request.get_json()
     username = data['username']
     password = data['password']
 
@@ -370,6 +370,13 @@ def signIn():
         try:
             if (user.check_password(password)):
                 auth["ACK"] = "SUCCESS"
+                auth["pecfestId"] = user.pecfestId
+                auth["firstName"] = user.firstName
+                auth["lastName"] = user.lastName
+                auth["collegeName"] = user.collegeName
+                auth["emailId"] = user.emailId
+                auth["mobileNumber"] = user.mobileNumber
+                auth["gender"] = user.gender
             else:
                 auth["ACK"] = "FAILED"
                 auth["message"] = "WRONG USERNAME/PASSWORD"
@@ -500,9 +507,9 @@ def getUserRegisteredEvents():
 
   for i in range(0, len(events)):
     events_dict = {}
-    events_dict["name"] = events[i].eventName
+    events_dict["name"] = events[i].Name
     events_dict["day"] = events[i].day
-    events_dict["venue"] = events[i].location
+    events_dict["venue"] = events[i].Location
     events_dict["time"] = events[i].time
     registeredEvents += [events_dict]
 
@@ -540,7 +547,7 @@ def getUserNotifications():
 
   for i in range(0, len(notifs)):
     notif_dict = {}
-    notif_dict["eventName"] = notifs[i][1].eventName
+    notif_dict["eventName"] = notifs[i][1].Name
     notif_dict["notificationTitle"] = notifs[i][0].notificationTitle
     notif_dict["notificationDetails"] = notifs[i][0].notificationDetails
     user_notifications += [notif_dict]
